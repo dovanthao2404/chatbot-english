@@ -1,9 +1,9 @@
 // Azure OpenAI Configuration
 export const AZURE_CONFIG = {
   // Default values - these can be overridden by environment variables
-  ENDPOINT: process.env.REACT_APP_AZURE_OPENAI_ENDPOINT || 'https://aiportalapi.stu-platform.live/jpe',
-  API_KEY: process.env.REACT_APP_AZURE_OPENAI_API_KEY || 'sk-VH7ExDjVCsqEuINFcSXCwA',
-  DEPLOYMENT_NAME: process.env.REACT_APP_AZURE_DEPLOYMENT_NAME || 'GPT-4o-mini',
+  ENDPOINT: process.env.REACT_APP_AZURE_OPENAI_ENDPOINT,
+  API_KEY: process.env.REACT_APP_AZURE_OPENAI_API_KEY,
+  DEPLOYMENT_NAME: process.env.REACT_APP_AZURE_DEPLOYMENT_NAME,
   API_VERSION: '2024-07-01-preview'
 };
 
