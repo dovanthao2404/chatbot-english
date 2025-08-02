@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { OPENAPI_CONFIG, CHATBOT_CONFIG } from '../config';
+import { CHATBOT_CONFIG, FUNCTION_CONFIG } from '../config';
+import { createChatCompletion, formatConversationHistory } from '../utils/openai-client';
+import { executeFunction } from '../utils/functions';
 import './Chatbot.css';
 
 const Chatbot = () => {
@@ -57,50 +59,86 @@ const Chatbot = () => {
     saveMessagesToStorage(messages);
   }, [messages]);
 
-  // Function to call OpenAPI
-  const callOpenAPI = async (userMessage) => {
+  // Function to call OpenAI using the library with function calling support
+  const callOpenAI = async (userMessage) => {
     try {
       // Prepare conversation history for API call
-      const conversationHistory = messages
-        .filter(msg => msg.sender !== 'bot' || msg.text !== "Hello! I'm your AI assistant. How can I help you today?")
-        .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
-        }));
+      const conversationHistory = formatConversationHistory(messages);
 
-      const response = await fetch(`${OPENAPI_CONFIG.ENDPOINT}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAPI_CONFIG.API_KEY}`,
+      const apiMessages = [
+        {
+          role: "system",
+          content: CHATBOT_CONFIG.SYSTEM_PROMPT
         },
-        body: JSON.stringify({
-          model: OPENAPI_CONFIG.MODEL,
-          messages: [
-            {
-              role: "system",
-              content: CHATBOT_CONFIG.SYSTEM_PROMPT
-            },
-            ...conversationHistory,
-            {
-              role: "user",
-              content: userMessage
-            }
-          ],
-          temperature: CHATBOT_CONFIG.TEMPERATURE,
-          max_tokens: CHATBOT_CONFIG.MAX_TOKENS,
-          stream: false
-        })
-      });
+        ...conversationHistory.map(msg => ({
+          ...msg,
+          content: typeof msg.content === 'object' && msg.content !== null && 'content' in msg.content
+            ? msg.content.content
+            : msg.content
+        })),
+        {
+          role: "user",
+          content: typeof userMessage === 'object' && userMessage !== null && 'content' in userMessage
+            ? userMessage.content
+            : userMessage
+        }
+      ];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Add function calling if enabled
+      const options = {
+        temperature: CHATBOT_CONFIG.TEMPERATURE,
+        max_tokens: CHATBOT_CONFIG.MAX_TOKENS
+      };
+
+      if (FUNCTION_CONFIG.ENABLE_FUNCTION_CALLING) {
+        options.tools = FUNCTION_CONFIG.functions.map(func => ({
+          type: "function",
+          function: {
+            name: func.name,
+            description: func.description,
+            parameters: func.parameters
+          }
+        }));
+        options.tool_choice = "auto";
       }
 
-      const data = await response.json();
-      return data.choices[0].message.content;
+      const response = await createChatCompletion(apiMessages, options);
+
+      // Check if the response includes tool calls
+      if (response.tool_calls && FUNCTION_CONFIG.ENABLE_FUNCTION_CALLING) {
+        const toolCall = response.tool_calls[0];
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+        
+        // Execute the function
+        const functionResult = await executeFunction(functionName, functionArgs);
+        
+        // Make a second API call with the function result
+        const secondApiMessages = [
+          ...apiMessages,
+          {
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall]
+          },
+          {
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: typeof functionResult === 'object' && functionResult !== null && 'content' in functionResult
+              ? functionResult.content
+              : functionResult
+          }
+        ];
+
+        return await createChatCompletion(secondApiMessages, {
+          temperature: CHATBOT_CONFIG.TEMPERATURE,
+          max_tokens: CHATBOT_CONFIG.MAX_TOKENS
+        });
+      }
+
+      return response.content || response;
     } catch (error) {
-      console.error('Error calling Azure OpenAI:', error);
+      console.error('Error calling OpenAI:', error);
       return "I'm sorry, I'm having trouble connecting right now. Please try again later.";
     }
   };
@@ -120,8 +158,8 @@ const Chatbot = () => {
     setIsTyping(true);
 
     try {
-      // Call OpenAPI
-      const botResponse = await callOpenAPI(inputMessage);
+      // Call OpenAI
+      const botResponse = await callOpenAI(inputMessage);
       
       const botMessage = {
         id: messages.length + 2,
@@ -158,12 +196,14 @@ const Chatbot = () => {
 
   // Function to format message text with proper formatting
   const formatMessageText = (text) => {
-    if (!text) return '';
-    
+    if (typeof text !== 'string') {
+      if (text === null || text === undefined) return '';
+      text = String(text);
+    }
     return text
       // Convert line breaks to <br> tags
       .replace(/\n/g, '<br>')
-      // Convert code blocks (```code```)
+      // Convert code blocks (```code```) 
       .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="code-block"><code class="language-$1">$2</code></pre>')
       // Convert inline code (`code`)
       .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
@@ -219,22 +259,29 @@ const Chatbot = () => {
       </div>
 
       <div className="chatbot-messages">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
-          >
-            <div className="message-content">
-              <div 
-                className="message-text"
-                dangerouslySetInnerHTML={{ 
-                  __html: formatMessageText(message.text) 
-                }}
-              />
-              <span className="message-time">{formatTime(message.timestamp)}</span>
+        {messages.map((message) => {
+          // Ensure formatMessageText always receives a string
+          let displayText = message.text;
+          if (typeof displayText === 'object' && displayText !== null && 'content' in displayText) {
+            displayText = displayText.content;
+          }
+          return (
+            <div
+              key={message.id}
+              className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
+            >
+              <div className="message-content">
+                <div 
+                  className="message-text"
+                  dangerouslySetInnerHTML={{ 
+                    __html: formatMessageText(displayText) 
+                  }}
+                />
+                <span className="message-time">{formatTime(message.timestamp)}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         {isTyping && (
           <div className="message bot-message">
