@@ -58,12 +58,6 @@ The chatbot uses the official OpenAI JavaScript library for generating responses
 - **Model**: The model name to use (default: gpt-4o-mini)
 - **Base URL**: Your OpenAI-compatible endpoint URL
 
-### Default Configuration
-The app comes with default values for testing:
-- API Key: `sk-VH7ExDjVCsqEuINFcSXCwA`
-- Model: `gpt-4o-mini`
-- Base URL: `https://aiportalapi.stu-platform.live/jpe`
-
 ## Usage
 
 - Type your message in the input field at the bottom
