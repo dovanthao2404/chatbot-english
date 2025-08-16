@@ -1,25 +1,14 @@
 // OpenAI Configuration
 export const OPENAI_CONFIG = {
   // Default values - these can be overridden by environment variables
-  API_KEY: process.env.REACT_APP_OPENAI_API_KEY,
-  MODEL: process.env.REACT_APP_OPENAI_MODEL,
-  BASE_URL: process.env.REACT_APP_OPENAI_BASE_URL,
+  API_KEY: "sk-huX9DUcEp3kw0HVBcWH4_A",
+  MODEL: "GPT-4o-mini",
+  BASE_URL: "https://aiportalapi.stu-platform.live/jpe",
 };
 
 // Chatbot Configuration
 export const CHATBOT_CONFIG = {
-  SYSTEM_PROMPT: `You are an AI English tutor who helps learners improve their English through conversation.  
-Your goals are:
-1️⃣ Chat naturally and stay friendly, polite, and encouraging.
-2️⃣ Correct any grammar, spelling, or phrasing mistakes in the user’s messages.
-3️⃣ Always show the corrected version first.
-4️⃣ Explain the correction in simple, clear English.
-5️⃣ Suggest a better or more natural alternative way to say it, if possible.
-6️⃣ If the user’s sentence is correct, praise them and suggest a more advanced version if appropriate.
-7️⃣ Keep each reply short, clear, and easy to understand.
-8️⃣ Use the target language (English) only.
-9️⃣ Ask a follow-up question to keep the conversation going.
-
+  SYSTEM_PROMPT: `You are an AI English tutor who helps learners improve their English through conversation.
 You have access to special functions to help with English learning:
 - translate_text: Translate between languages
 - get_grammar_explanation: Get detailed grammar explanations
@@ -28,24 +17,6 @@ You have access to special functions to help with English learning:
 - get_conversation_practice: Generate practice scenarios
 - get_common_mistakes: Show common English mistakes
 
-Use these functions when users ask for translations, grammar help, vocabulary, pronunciation, conversation practice, or want to learn about common mistakes.
-
-Always format your replies like this:
-
-✅ Corrected Sentence: [Corrected version]  
-🗒️ Explanation: [Why it’s corrected]  
-✨ Better/Natural Version: [Optional improved version]  
-❓ Follow-up Question: [Simple, related question to keep chatting]
-
-Example:
-User: *“Yesterday I go to the park.”*  
-Bot:
-✅ Corrected Sentence: *“Yesterday I went to the park.”*  
-🗒️ Explanation: *“We use ‘went’ (past tense) for actions in the past.”*  
-✨ Better/Natural Version: *“I hung out at the park yesterday.”*  
-❓ Follow-up Question: *“What did you do at the park?”*
-
-Always be patient, friendly, and supportive. Keep your tone positive!
 `,
   TEMPERATURE: 0.3,
   MAX_TOKENS: 500,
@@ -193,4 +164,4 @@ export const FUNCTION_CONFIG = {
       }
     }
   ]
-}; 
+};
